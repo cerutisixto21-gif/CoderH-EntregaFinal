@@ -1,0 +1,1381 @@
+{
+  "name": "Triage y Respuesta Automatizada de Consultas - ADC",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "remitente",
+              "type": "string",
+              "value": "={{ $json.from.value[0].address }}"
+            },
+            {
+              "id": "a2",
+              "name": "asunto",
+              "type": "string",
+              "value": "={{ $json.subject }}"
+            },
+            {
+              "id": "a3",
+              "name": "mensaje",
+              "type": "string",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "id": "a4",
+              "name": "message_id",
+              "type": "string",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "id": "a5",
+              "name": "thread_id",
+              "type": "string",
+              "value": "={{ $json.threadId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6160caf0-cbe8-4c10-be65-b52cfb21a345",
+      "name": "Normalizar Datos del Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "filterByFormula": "={{ '{Message ID} = \"' + $json.message_id + '\"' }}",
+        "options": {}
+      },
+      "id": "53456a8e-082b-459f-b9a1-0c317065e522",
+      "name": "Buscar Duplicado en Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        -320,
+        0
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.id }}",
+              "operator": {
+                "type": "string",
+                "operation": "exists"
+              },
+              "rightValue": ""
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "3d45b4b0-d329-4925-a0dd-f3cb2631ce64",
+      "name": "Ya se proceso este email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -80,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6144c91a-dcb8-4ffc-b83e-201c84617788",
+      "name": "Descartar Duplicado (ya procesado antes)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        160,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "flddp5snuWgF0tY9w": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.remitente }}",
+            "fldmYSK5CFEQ22zTB": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.asunto }}",
+            "flddiiawtNzBUkR3S": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.mensaje }}",
+            "fldzZQqZT46E042Xk": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.message_id }}",
+            "fldWjw1DMum9sOf15": "={{ $now.toISO() }}",
+            "fldoORKDrJFrPPS0v": "Pendiente"
+          }
+        },
+        "options": {}
+      },
+      "id": "80cda845-7948-4b33-884f-aed8260cbeb8",
+      "name": "Crear Fila en Airtable (Pendiente)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        160,
+        -96
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Asunto: {{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.fields.Asunto }}\nMensaje: {{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.fields[\"Mensaje Original\"] }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "Actua como un Clasificador de Consultas Entrantes para ADC, un software de gestion para nutricionistas.\n\nTu objetivo es clasificar el email en dos variables: categoria (Comercial, Soporte Tecnico u Otro) y prioridad (Alta, Media o Baja).\n\nDefiniciones:\n- Comercial: la persona pregunta por precio, planes, si el producto le sirve para su caso, quiere una demo, o muestra interes en contratar. Ejemplo: 'quiero saber si esto me sirve y cuanto cuesta' = Comercial.\n- Soporte Tecnico: la persona YA es cliente y reporta un problema, error o duda de uso del producto.\n- Otro: no tiene relacion con ADC (spam, temas no relacionados).\n\nPensa paso a paso antes de responder: 1) identifica si la persona ya es cliente con un problema (Soporte Tecnico) o esta evaluando contratar/preguntando precio o encaje (Comercial) o no tiene relacion (Otro), 2) evalua la prioridad segun la urgencia expresada, 3) recien ahi devolve el resultado.\n\nCualquier consulta de alguien que todavia no es cliente preguntando por el producto, precio o si le sirve, es Comercial - no Otro.\n\nDevolve unicamente el JSON, sin texto adicional."
+        }
+      },
+      "id": "702b82b9-68ac-4c54-944c-b7bd8870e62c",
+      "name": "Clasificar Consulta (IA)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        400,
+        -96
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.1-8b-instant",
+        "options": {
+          "maxTokensToSample": 200,
+          "temperature": 0.1
+        }
+      },
+      "id": "8f140cca-dab6-4b6e-99ef-36d10565f94f",
+      "name": "Groq - Modelo Clasificador",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        384,
+        64
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "jtPJqwG6ZNQ17DXZ",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{ \"categoria\": \"Comercial\", \"prioridad\": \"Media\" }"
+      },
+      "id": "0f681dc9-521d-4739-a4d4-6682d4c95b83",
+      "name": "Formato de Clasificacion (JSON)",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        64
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.categoria }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Comercial"
+                  },
+                  {
+                    "leftValue": "={{ $json.output.categoria }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "rightValue": "Soporte Tecnico"
+                  }
+                ],
+                "combinator": "or"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "Otro / Descartar"
+        }
+      },
+      "id": "2506ba8e-16bd-4cb7-8323-2bb8c2e947bb",
+      "name": "Es una consulta relevante?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        672,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tbl1sbUeaW9a6mt3e",
+          "cachedResultName": "Base de Conocimiento RAG"
+        },
+        "options": {}
+      },
+      "id": "a8fbc724-3df0-4c92-b049-0b3802e60664",
+      "name": "Buscar Base de Conocimiento RAG",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        -256
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "fields.Contenido",
+              "renameField": true,
+              "outputFieldName": "contexto_rag"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8250ccd5-278f-45df-8274-6f07947dc364",
+      "name": "Unificar Contexto RAG",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Asunto: {{ $(\"Normalizar Datos del Email\").itemMatching($itemIndex).json.asunto }}\nMensaje del remitente: {{ $(\"Normalizar Datos del Email\").itemMatching($itemIndex).json.mensaje }}\nCategoria detectada: {{ $(\"Clasificar Consulta (IA)\").itemMatching($itemIndex).json.output.categoria }}\n\nDirectrices privadas (Base de Conocimiento RAG):\n{{ $json.contexto_rag.join(\"\\n\\n\") }}",
+        "options": {
+          "systemMessage": "Actua como un Redactor de Atencion al Cliente de ADC, un software de gestion para nutricionistas.\n\nTu objetivo es redactar una respuesta de email personalizada para la consulta que te paso, basandote EXCLUSIVAMENTE en las directrices privadas incluidas en el mensaje. No uses conocimiento externo de internet, solo esta informacion validada.\n\nAntes de escribir, pensa paso a paso: 1) identifica que directriz privada es mas relevante para lo que pregunta la persona, 2) defini el tono (profesional pero cercano, sin prometer resultados clinicos), 3) recien ahi redacta la respuesta.\n\nEscribi la respuesta lista para enviar, en espanol, como si fueras del equipo de ADC. No incluyas asunto ni firma, solo el cuerpo del email."
+        }
+      },
+      "id": "92deb58c-122b-4147-8f1f-e5d4b4478e7c",
+      "name": "Redactar Respuesta (IA)",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1392,
+        -144
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {
+          "maxTokensToSample": 500,
+          "temperature": 0.5
+        }
+      },
+      "id": "bb57622b-3900-4e08-8ebc-1680ac0910af",
+      "name": "Groq - Modelo Redactor (70B)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        -48
+      ],
+      "credentials": {
+        "groqApi": {
+          "id": "jtPJqwG6ZNQ17DXZ",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldvKKUPakaLPOT6T": "={{ $('Redactar Respuesta (IA)').itemMatching($itemIndex).json.output }}",
+            "fldEh7KCejMPvsTCq": "={{ $('Clasificar Consulta (IA)').itemMatching($itemIndex).json.output.categoria }}",
+            "fldECtF30E1fqyL0B": "={{ $('Clasificar Consulta (IA)').itemMatching($itemIndex).json.output.prioridad }}",
+            "fldoORKDrJFrPPS0v": "Procesado por IA"
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "fcfe6caf-3d0f-4828-9833-9fc36d250a7f",
+      "name": "Guardar Respuesta Generada",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        -144
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "C0BHGK2MH0E",
+          "cachedResultName": "general-sxto-workshop"
+        },
+        "message": "=Nueva consulta lista para revisar:\n\nDe: {{ $(\"Normalizar Datos del Email\").itemMatching($itemIndex).json.remitente }}\nAsunto: {{ $(\"Normalizar Datos del Email\").itemMatching($itemIndex).json.asunto }}\nCategoria: {{ $(\"Clasificar Consulta (IA)\").itemMatching($itemIndex).json.output.categoria }} | Prioridad: {{ $(\"Clasificar Consulta (IA)\").itemMatching($itemIndex).json.output.prioridad }}\n\nBorrador de respuesta:\n{{ $(\"Redactar Respuesta (IA)\").itemMatching($itemIndex).json.output }}",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Aprobar y Enviar",
+            "disapproveLabel": "Rechazar"
+          }
+        },
+        "options": {
+          "limitWaitTime": {
+            "values": {
+              "resumeAmount": 24
+            }
+          }
+        }
+      },
+      "id": "92711a69-d122-486a-8357-9c02cc430587",
+      "name": "Notificar en Slack y Esperar Aprobacion (HITL)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        1872,
+        -144
+      ],
+      "webhookId": "775d9f64-f585-44d2-b3b2-e5a45b292642",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "slackApi": {
+          "id": "DaDYoaDpZmLPI2ze",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              },
+              "rightValue": true
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e29f7ac4-59cd-4c1c-a695-b771b843e834",
+      "name": "Fue aprobado por el humano?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2112,
+        -144
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Aprobado por Humano"
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "8f492aa8-1da7-49c5-8c8d-afb5b5e18e50",
+      "name": "Marcar Aprobado por Humano",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2352,
+        -304
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Enviado"
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "31a8c7bb-5f53-4436-ac33-ac12e3cb2ae2",
+      "name": "Marcar como Enviado",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2832,
+        -304
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Descartado",
+            "fldgBzqeXv2suwFMO": "Respuesta generada por IA rechazada por el revisor humano en Slack."
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "23644303-3dc1-4fdb-8d71-993314fdb266",
+      "name": "Marcar Rechazado por Humano",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2352,
+        0
+      ],
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tbltsIhXHc0nhO5UA",
+          "cachedResultName": "Log de Errores"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fldY62YuBbasZerHb": "={{ 'Fallo IA redactando: ' + $('Normalizar Datos del Email').itemMatching($itemIndex).json.asunto }}",
+            "fld0B40OiM6ZkUAbX": "Fallo API IA",
+            "fldRhMcNrKbnprv2z": "={{ $json.error?.message ?? JSON.stringify($json) }}",
+            "fldeMdymmfS7Q4pPj": "={{ $now.toISO() }}",
+            "fld13PdSExtYq25tK": "={{ [$('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id] }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "70838dfd-f798-496a-9c65-089da647ac32",
+      "name": "Registrar Error de Redaccion",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1392,
+        -400
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Error",
+            "fld5lvWSGslElsDWb": "Fallo la redaccion de la respuesta por IA. Ver Log de Errores para el detalle."
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "f18e7f13-8358-4253-8270-ec0b62002291",
+      "name": "Marcar Consulta en Error (Redaccion)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        -400
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Descartado",
+            "fldEh7KCejMPvsTCq": "Otro",
+            "fldgBzqeXv2suwFMO": "Descartado automaticamente: no es una consulta relacionada a ADC."
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "571969e9-b25b-41ef-8c52-c596eb8dd677",
+      "name": "Descartar (categoria Otro)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        160
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tbltsIhXHc0nhO5UA",
+          "cachedResultName": "Log de Errores"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fldY62YuBbasZerHb": "={{ 'Fallo IA clasificando: ' + $('Normalizar Datos del Email').itemMatching($itemIndex).json.asunto }}",
+            "fld0B40OiM6ZkUAbX": "Fallo API IA",
+            "fldRhMcNrKbnprv2z": "={{ $json.error?.message ?? JSON.stringify($json) }}",
+            "fldeMdymmfS7Q4pPj": "={{ $now.toISO() }}",
+            "fld13PdSExtYq25tK": "={{ [$('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id] }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "e92c3e59-03ab-4483-b90d-f4e52f536241",
+      "name": "Registrar Error de Clasificacion",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        400,
+        -352
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Error",
+            "fld5lvWSGslElsDWb": "Fallo la clasificacion por IA. Ver Log de Errores para el detalle."
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "cddf35c9-5fff-4ba8-af1c-03fdd2b4b2f9",
+      "name": "Marcar Consulta en Error (Clasificacion)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        640,
+        -352
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Ecosistema de Triage ADC\nGmail Trigger -> Airtable (memoria) -> Groq (clasificar + redactar con RAG) -> Slack HITL (Send and Wait) -> Gmail (envio)\n\nAnti-bucle: el trigger solo mira mensajes no leidos que no sean propios (-from:me), y el email se marca como leido apenas se crea el registro en Airtable, para que no se reprocese en el proximo polling.",
+        "height": 200,
+        "width": 540,
+        "color": 4
+      },
+      "id": "6c2bd38d-3832-44b1-a372-bb9a4baa9b3d",
+      "name": "Sticky Note 27acd117",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -848,
+        -256
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyX",
+              "value": 5,
+              "unit": "minutes"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "q": "-from:me",
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "e8815637-69f0-4191-ab87-52b34a2918bc",
+      "name": "Gmail Trigger - Nueva Consulta",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -800,
+        0
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TCSrr5UikayBw2Jx",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.message_id }}"
+      },
+      "id": "ff2857ee-fa56-4cca-922c-2079415c7a10",
+      "name": "Marcar Email como Leido",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        -224
+      ],
+      "webhookId": "def54547-9451-40b4-afe1-598e8e9dbd03",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TCSrr5UikayBw2Jx",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Normalizar Datos del Email').itemMatching($itemIndex).json.message_id }}",
+        "emailType": "text",
+        "message": "={{ $('Redactar Respuesta (IA)').itemMatching($itemIndex).json.output }}",
+        "options": {
+          "replyToSenderOnly": true
+        }
+      },
+      "id": "f56d82a6-f5a3-480e-b46d-e6eef35e648b",
+      "name": "Enviar Respuesta por Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2592,
+        -304
+      ],
+      "webhookId": "367f9c4b-c3e5-4e32-81e8-f46025cbfa84",
+      "onError": "continueErrorOutput",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TCSrr5UikayBw2Jx",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tbltsIhXHc0nhO5UA",
+          "cachedResultName": "Log de Errores"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "fldY62YuBbasZerHb": "={{ 'Fallo de sistema (Airtable/Gmail/Slack): ' + $('Normalizar Datos del Email').itemMatching($itemIndex).json.asunto }}",
+            "fld0B40OiM6ZkUAbX": "Otro",
+            "fldRhMcNrKbnprv2z": "={{ $json.error?.message ?? JSON.stringify($json) }}",
+            "fldeMdymmfS7Q4pPj": "={{ $now.toISO() }}",
+            "fld13PdSExtYq25tK": "={{ [$('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id] }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-1111-4a4a-8b8b-registrarerr01",
+      "name": "Registrar Error de Sistema",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2200,
+        320
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "mode": "id",
+          "value": "appRVvAowAEEgQAvF",
+          "cachedResultName": "ADC - Centro de Comando de Contenido"
+        },
+        "table": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tblwSF8XpciB7DcJ8",
+          "cachedResultName": "Consultas"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Crear Fila en Airtable (Pendiente)').itemMatching($itemIndex).json.id }}",
+            "fldoORKDrJFrPPS0v": "Error",
+            "fld5lvWSGslElsDWb": "Fallo un paso del sistema (Airtable, Gmail o Slack) fuera de la IA. Ver Log de Errores para el detalle."
+          },
+          "matchingColumns": [
+            "id"
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-2222-4a4a-8b8b-marcarerror02",
+      "name": "Marcar Consulta en Error (Sistema)",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        2440,
+        320
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "tYmSDlNfnctDD9Cp",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Normalizar Datos del Email": {
+      "main": [
+        [
+          {
+            "node": "Buscar Duplicado en Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Duplicado en Airtable": {
+      "main": [
+        [
+          {
+            "node": "Ya se proceso este email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ya se proceso este email?": {
+      "main": [
+        [
+          {
+            "node": "Descartar Duplicado (ya procesado antes)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Crear Fila en Airtable (Pendiente)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar Consulta (IA)": {
+      "main": [
+        [
+          {
+            "node": "Es una consulta relevante?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Clasificacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formato de Clasificacion (JSON)": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Clasificar Consulta (IA)",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Es una consulta relevante?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Base de Conocimiento RAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Descartar (categoria Otro)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Base de Conocimiento RAG": {
+      "main": [
+        [
+          {
+            "node": "Unificar Contexto RAG",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unificar Contexto RAG": {
+      "main": [
+        [
+          {
+            "node": "Redactar Respuesta (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redactar Respuesta (IA)": {
+      "main": [
+        [
+          {
+            "node": "Guardar Respuesta Generada",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Redaccion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Modelo Redactor (70B)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Redactar Respuesta (IA)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardar Respuesta Generada": {
+      "main": [
+        [
+          {
+            "node": "Notificar en Slack y Esperar Aprobacion (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notificar en Slack y Esperar Aprobacion (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Fue aprobado por el humano?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fue aprobado por el humano?": {
+      "main": [
+        [
+          {
+            "node": "Marcar Aprobado por Humano",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Rechazado por Humano",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Error de Redaccion": {
+      "main": [
+        [
+          {
+            "node": "Marcar Consulta en Error (Redaccion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Error de Clasificacion": {
+      "main": [
+        [
+          {
+            "node": "Marcar Consulta en Error (Clasificacion)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger - Nueva Consulta": {
+      "main": [
+        [
+          {
+            "node": "Normalizar Datos del Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Fila en Airtable (Pendiente)": {
+      "main": [
+        [
+          {
+            "node": "Marcar Email como Leido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Email como Leido": {
+      "main": [
+        [
+          {
+            "node": "Clasificar Consulta (IA)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Aprobado por Humano": {
+      "main": [
+        [
+          {
+            "node": "Enviar Respuesta por Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Rechazado por Humano": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar Respuesta por Gmail": {
+      "main": [
+        [
+          {
+            "node": "Marcar como Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar como Enviado": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Registrar Error de Sistema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Error de Sistema": {
+      "main": [
+        [
+          {
+            "node": "Marcar Consulta en Error (Sistema)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq - Modelo Clasificador": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Clasificar Consulta (IA)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "8eb2a731-627f-4e97-83e6-cb78e0d03cce",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "ff064f096578e6b6c1980c0933d3a85d07860f7c707c4b0094f701a9eb21bc6d"
+  },
+  "nodeGroups": [],
+  "id": "2jiAqXJwgvVyIzmu",
+  "tags": []
+}
