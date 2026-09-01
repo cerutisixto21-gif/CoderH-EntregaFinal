@@ -27,12 +27,16 @@ Sistema de triage automatizado de consultas por email para el software ADC, orie
 - [Ejecución n8n #116 exitosa](./01-ejecucion-116-exitosa.jpg)
 - [Aprobación humana en Slack](./03-aprobacion-humana-slack.jpg)
 - [Respuesta enviada por Gmail](./02-respuesta-gmail-enviada.jpg)
+- [Historial de ejecuciones](./Imagen-LatestExecutions.png)
+- [Notificación de aprobación en Slack](./Imagen-SlackBotNotification.png)
 
 ## Airtable
 
-- [Dashboard público](https://airtable.com/appRVvAowAEEgQAvF/shrjfXrFe32q7KkRJ)
-- [Base de datos en modo lectura](https://airtable.com/appRVvAowAEEgQAvF/shrY9ejd6yByPFuiN)
+- [Base de datos ADC — modo lectura](https://airtable.com/appRVvAowAEEgQAvF/shrY9ejd6yByPFuiN)
+- El dashboard de control y sus indicadores se documentan en el Entregable 5.
 
 ## Video demo
 
-El video demostrará el trigger de Gmail, el procesamiento de n8n y el resultado final. La guía de grabación se incorporará cuando el video esté listo.
+[Ver video demostrativo del workflow](https://github.com/cerutisixto21-gif/CoderH-EntregaFinal/releases/tag/video-demo-ADC)
+
+El video muestra el trigger de Gmail, el procesamiento en n8n, la clasificación con IA, el registro en Airtable, la aprobación humana en Slack y el envío final de la respuesta por Gmail.
